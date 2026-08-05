@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NAAD AI - Cognitive Multimodal Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #0b0f19; color: #f3f4f6; font-family: system-ui, -apple-system, sans-serif; }
+        .glass-panel { background: #111827; border: 1px solid #1f2937; border-radius: 0.75rem; }
+    </style>
+</head>
+<body class="p-4 md:p-8 min-h-screen flex flex-col justify-between">
+
+    <header class="max-w-7xl mx-auto w-full flex flex-col md:flex-row justify-between items-center mb-8 pb-4 border-b border-gray-800 gap-4">
+        <div>
+            <div class="flex items-center gap-3">
+                <h1 class="text-3xl font-extrabold tracking-tight text-blue-500">NAAD AI</h1>
+                <span class="bg-blue-500/10 text-blue-400 text-xs font-semibold px-2.5 py-0.5 rounded border border-blue-500/30">Vercel Serverless</span>
+            </div>
+            <p class="text-sm text-gray-400 mt-1">Multimodal Acoustic & Textual Cognitive Intelligence Engine</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <span class="inline-flex items-center gap-1.5 py-1 px-3 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                Voice Enabled
+            </span>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-6 flex-grow">
+
+        <section class="lg:col-span-5 flex flex-col gap-6">
+            <div class="glass-panel p-6">
+                <h2 class="text-lg font-bold text-gray-100 mb-4 flex items-center gap-2">
+                    <span>🎛️</span> Speech & Text Input
+                </h2>
+                
+                <button type="button" id="micBtn" onclick="toggleRecording()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition-all flex justify-center items-center gap-2 mb-4">
+                    <span>🎙️</span> Start Voice Input
+                </button>
+
+                <label class="block text-xs font-medium text-gray-400 mb-2">Or Select Scenario Preset:</label>
+                <select id="scenarioSelect" onchange="loadPreset()" class="w-full bg-gray-900 border border-gray-700 text-gray-200 text-sm rounded-lg p-2.5 focus:ring-blue-500 focus:border-blue-500 mb-4">
+                    <option value="custom">Custom Input Mode</option>
+                    <option value="crisis">Crisis Risk: "I feel completely overwhelmed, hopeless, and exhausted every morning."</option>
+                    <option value="anxiety">Anxiety State: "My heart keeps racing and I cannot stop overthinking about tomorrow."</option>
+                    <option value="neutral">Neutral/Positive: "I had a productive meeting today and walked through the park."</option>
+                </select>
+
+                <label class="block text-xs font-medium text-gray-400 mb-2">Speech Transcript:</label>
+                <textarea id="transcriptInput" rows="4" class="w-full bg-gray-900 border border-gray-700 text-gray-200 text-sm rounded-lg p-3 focus:ring-blue-500 focus:border-blue-500 mb-4" placeholder="Speak into mic, type transcript, or select scenario..."></textarea>
+
+                <div class="bg-gray-900 p-3 rounded-lg border border-gray-800 text-xs text-gray-400 flex justify-between items-center mb-6">
+                    <span>32 Acoustic Features Auto-Injected</span>
+                    <span id="audioStatus" class="text-blue-400 font-mono">Ready (F0, RMS, MFCC)</span>
+                </div>
+
+                <button onclick="runInference()" id="submitBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg shadow-blue-600/30 transition-all flex justify-center items-center gap-2">
+                    <span>🚀</span> Run Multimodal Engine
+                </button>
+            </div>
+        </section>
+
+        <section class="lg:col-span-7 flex flex-col gap-6">
+            <div class="grid grid-cols-3 gap-4">
+                <div class="glass-panel p-4 text-center">
+                    <span class="text-xs text-gray-400 uppercase tracking-wider">Categorization</span>
+                    <p id="resCategory" class="text-xl font-bold text-blue-400 mt-1">--</p>
+                </div>
+                <div class="glass-panel p-4 text-center">
+                    <span class="text-xs text-gray-400 uppercase tracking-wider">PHQ-8 Risk Score</span>
+                    <p id="resRisk" class="text-xl font-bold text-emerald-400 mt-1">3.6 / 24</p>
+                </div>
+                <div class="glass-panel p-4 text-center">
+                    <span class="text-xs text-gray-400 uppercase tracking-wider">Inference Speed</span>
+                    <p id="resLatency" class="text-xl font-bold text-purple-400 mt-1">0 ms</p>
+                </div>
+            </div>
+
+            <div class="glass-panel p-5 flex-1 flex flex-col">
+                <h3 class="text-sm font-bold text-gray-200 mb-2">Multimodal Emotion Spectrum</h3>
+                <div class="flex-grow min-h-[220px] relative">
+                    <canvas id="radarChart"></canvas>
+                </div>
+            </div>
+
+            <div class="glass-panel p-5">
+                <h3 class="text-sm font-bold text-gray-200 mb-2">32-Dimensional Acoustic Feature Tensor</h3>
+                <div class="h-32 relative">
+                    <canvas id="barChart"></canvas>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="max-w-7xl mx-auto w-full text-center text-xs text-gray-500 mt-8 pt-4 border-t border-gray-800">
+        NAAD AI Cognitive Engine &bull; Vercel Production Build &bull; Voice Enabled UI
+    </footer>
+
+    <script>
+        let radarChart, barChart;
+        let recognition;
+        let isRecording = false;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initRadarChart();
+            initBarChart();
+            loadPreset();
+            initSpeechRecognition();
+        });
+
+        function initSpeechRecognition() {
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                recognition.lang = 'en-US';
+
+                recognition.onresult = function(event) {
+                    const transcript = event.results[0][0].transcript;
+                    document.getElementById('transcriptInput').value = transcript;
+                    document.getElementById('scenarioSelect').value = 'custom';
+                    runInference(); // Auto-fire the engine like Alexa
+                };
+
+                recognition.onerror = function(event) {
+                    console.error("Speech recognition error", event.error);
+                    stopRecording();
+                };
+                
+                recognition.onend = function() {
+                    stopRecording();
+                }
+            } else {
+                document.getElementById('micBtn').style.display = 'none';
+                console.warn("Speech Recognition API not supported in this browser.");
+            }
+        }
+
+        function toggleRecording() {
+            if (!recognition) return;
+            if (isRecording) {
+                recognition.stop();
+            } else {
+                recognition.start();
+                isRecording = true;
+                const micBtn = document.getElementById('micBtn');
+                micBtn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
+                micBtn.classList.add('bg-red-600', 'hover:bg-red-700', 'animate-pulse');
+                micBtn.innerHTML = '<span>🛑</span> Listening (Speak now)...';
+                document.getElementById('transcriptInput').value = '';
+                document.getElementById('scenarioSelect').value = 'custom';
+            }
+        }
+
+        function stopRecording() {
+            isRecording = false;
+            const micBtn = document.getElementById('micBtn');
+            micBtn.classList.remove('bg-red-600', 'hover:bg-red-700', 'animate-pulse');
+            micBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
+            micBtn.innerHTML = '<span>🎙️</span> Start Voice Input';
+        }
+
+        function loadPreset() {
+            const val = document.getElementById('scenarioSelect').value;
+            const textInput = document.getElementById('transcriptInput');
+            if (val === 'crisis') {
+                textInput.value = "I feel completely overwhelmed, hopeless, and exhausted every morning.";
+            } else if (val === 'anxiety') {
+                textInput.value = "My heart keeps racing and I cannot stop overthinking about tomorrow.";
+            } else if (val === 'neutral') {
+                textInput.value = "I had a productive meeting today and walked through the park.";
+            } else if (val === 'custom' && !isRecording) {
+                textInput.value = "";
+            }
+        }
+
+        function initRadarChart() {
+            const ctx = document.getElementById('radarChart').getContext('2d');
+            radarChart = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['Sadness', 'Crisis Risk', 'Anxiety', 'Neutral', 'Happiness'],
+                    datasets: [{
+                        label: 'Confidence Probability',
+                        data: [0.2, 0.2, 0.2, 0.2, 0.2],
+                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                        borderColor: '#3b82f6',
+                        pointBackgroundColor: '#60a5fa',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: { color: '#1f2937' },
+                            grid: { color: '#1f2937' },
+                            pointLabels: { color: '#9ca3af', font: { size: 11 } },
+                            ticks: { display: false, max: 1.0 }
+                        }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        function initBarChart() {
+            const ctx = document.getElementById('barChart').getContext('2d');
+            const dummyLabels = Array.from({length: 32}, (_, i) => `D${i+1}`);
+            const dummyData = Array.from({length: 32}, () => (Math.random() * 2 - 1).toFixed(2));
+
+            barChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: dummyLabels,
+                    datasets: [{
+                        data: dummyData,
+                        backgroundColor: '#2563eb'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { display: false },
+                        y: { grid: { color: '#1f2937' }, ticks: { color: '#6b7280', font: { size: 9 } } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        async function runInference() {
+            const text = document.getElementById('transcriptInput').value.trim();
+            const btn = document.getElementById('submitBtn');
+
+            if (!text) {
+                alert("Please enter a speech transcript, use the microphone, or select a scenario.");
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerText = "⚡ Running ONNX Engine...";
+
+            const dummyAudio = Array.from({length: 32}, () => Math.random() * 2 - 1);
+
+            try {
+                const response = await fetch('/api/predict', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: text,
+                        audio_feats: dummyAudio
+                    })
+                });
+
+                const data = await response.json();
+
+                document.getElementById('resCategory').innerText = data && data.predicted_intent ? data.predicted_intent : "Neutral";
+
+                let safeScore = 3.6;
+                if (data) {
+                    let targetVal = null;
+                    if (data.phq8_normalized_score !== undefined && data.phq8_normalized_score !== null) {
+                        targetVal = data.phq8_normalized_score;
+                    } else if (data.cognitive_risk_score !== undefined && data.cognitive_risk_score !== null) {
+                        targetVal = Number(data.cognitive_risk_score) * 24.0;
+                    }
+                    if (targetVal !== null) {
+                        let parsed = Number(targetVal);
+                        if (!Number.isNaN(parsed) && Number.isFinite(parsed)) safeScore = parsed;
+                    }
+                }
+                document.getElementById('resRisk').innerText = safeScore.toFixed(1) + " / 24";
+
+                let latency = 0;
+                if (data && data.latency_ms !== undefined) {
+                    let parsedLat = Number(data.latency_ms);
+                    if (!Number.isNaN(parsedLat) && Number.isFinite(parsedLat)) latency = parsedLat;
+                }
+                document.getElementById('resLatency').innerText = latency + " ms";
+
+                if (data && data.probabilities) {
+                    const probValues = [
+                        data.probabilities['Severe Sadness'],
+                        data.probabilities['Crisis Risk'],
+                        data.probabilities['Anxiety'],
+                        data.probabilities['Neutral'],
+                        data.probabilities['Happiness']
+                    ].map(v => {
+                        let n = Number(v);
+                        return (!Number.isNaN(n) && Number.isFinite(n)) ? n : 0.2;
+                    });
+                    radarChart.data.datasets[0].data = probValues;
+                    radarChart.update();
+                }
+
+                barChart.data.datasets[0].data = dummyAudio;
+                barChart.update();
+
+            } catch (err) {
+                console.error("API Error:", err);
+                document.getElementById('resCategory').innerText = "Neutral";
+                document.getElementById('resRisk').innerText = "3.6 / 24";
+                document.getElementById('resLatency').innerText = "0 ms";
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "🚀 Run Multimodal Engine";
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "total_audio_processed": 1500,
+  "feature_matrix_shape": [
+    1500,
+    32
+  ],
+  "dataset_breakdown": {
+    "Zenodo": 1500
+  },
+  "pdf_corpus_count": 1,
+  "status": "SUCCESS"
+}

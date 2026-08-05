@@ -1,0 +1,4 @@
+fastapi==0.109.2
+mangum==0.17.0
+onnxruntime==1.17.1
+numpy==1.26.4
