@@ -1,5 +1,16 @@
 # Gitignore for NAAD AI Engine
 __pycache__/
-*.pyc
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
 .env
+.env.*
+!*.example
 .ipynb_checkpoints/
+# E-DAIC is restricted research data. Keep source archives, extracted data, and derived transcripts out of Git.
+data/processed/
+data/raw/
+*.tar.gz
+# Locally trained research artifacts; distribute only through an authorized private channel.
+models/
