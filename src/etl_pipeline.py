@@ -9,7 +9,7 @@ TEXT_COLUMNS = ("value", "text", "transcript", "utterance", "content")
 
 
 def participant_id(path: Path):
-    match = re.search(r"(?<!\\d)(\\d{3})(?!\\d)", path.name)
+    match = re.search(r"(?<!\d)(\d{3})(?!\d)", path.name)
     return int(match.group(1)) if match else None
 
 
@@ -63,7 +63,7 @@ def _extract_text(path: Path):
             text = text.loc[~interviewer]
             method = "non_interviewer_turns"
 
-    utterances = [re.sub(r"\\s+", " ", value).strip() for value in text.tolist()]
+    utterances = [re.sub(r"\s+", " ", value).strip() for value in text.tolist()]
     return " ".join(value for value in utterances if value), method
 
 
