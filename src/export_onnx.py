@@ -1,32 +1,17 @@
-import os
-import torch
-import onnxruntime as ort
-from src.train_multimodal import NAADMultimodalEngine
+from pathlib import Path
 
-def export_model(model, export_path):
-    os.makedirs(os.path.dirname(export_path), exist_ok=True)
-    model.eval()
-    model.to("cpu")
+import joblib
 
-    dummy_input_ids = torch.ones((1, 128), dtype=torch.long)
-    dummy_attention_mask = torch.ones((1, 128), dtype=torch.long)
-    dummy_audio_feats = torch.randn((1, 32), dtype=torch.float32)
 
-    torch.onnx.export(
-        model,
-        (dummy_input_ids, dummy_attention_mask, dummy_audio_feats),
-        export_path,
-        export_params=True,
-        opset_version=14,
-        do_constant_folding=True,
-        input_names=['input_ids', 'attention_mask', 'audio_feats'],
-        output_names=['logits', 'risk_score'],
-        dynamic_axes={
-            'input_ids': {0: 'batch_size'},
-            'attention_mask': {0: 'batch_size'},
-            'audio_feats': {0: 'batch_size'},
-            'logits': {0: 'batch_size'},
-            'risk_score': {0: 'batch_size'}
-        }
-    )
-    print(f"✅ Exported ONNX model to {export_path}")
+def export_model(model, export_path: str | Path) -> Path:
+    """Persist the scikit-learn research baseline as a trusted local artifact.
+
+    This model is not ONNX: its TF-IDF vectorizers and Ridge estimator are packaged
+    together in the fitted pipeline and loaded by the restricted research API.
+    """
+    path = Path(export_path)
+    if path.suffix != ".joblib":
+        raise ValueError("The text baseline is serialized as .joblib, not ONNX.")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    joblib.dump(model, path)
+    return path
