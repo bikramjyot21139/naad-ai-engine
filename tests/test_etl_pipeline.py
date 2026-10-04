@@ -8,7 +8,8 @@ from src.etl_pipeline import build_dataset
 
 def write_csv(path: Path, rows):
     path.parent.mkdir(parents=True, exist_ok=True)
-    pd.DataFrame(rows).to_csv(path, index=False)
+    columns = ["Participant_ID", "PHQ_Binary", "PHQ_Score"] if path.name.endswith("_split.csv") else ["speaker", "value"]
+    pd.DataFrame(rows, columns=columns).to_csv(path, index=False)
 
 
 def test_aligns_participant_text_to_official_split_and_target(tmp_path):
