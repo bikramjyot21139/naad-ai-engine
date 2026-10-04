@@ -6,6 +6,7 @@ from pathlib import Path
 
 import joblib
 import numpy as np
+import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
@@ -85,7 +86,8 @@ def predict(payload: PredictRequest):
 
     started = time.perf_counter()
     try:
-        predictions = np.asarray(model.predict([text]), dtype=np.float64).reshape(-1)
+        # The fitted ColumnTransformer selects the named transcript column.
+        predictions = np.asarray(model.predict(pd.DataFrame({"transcript": [text]})), dtype=np.float64).reshape(-1)
     except Exception as exc:
         raise HTTPException(status_code=503, detail="Research model inference failed; no estimate was produced.") from exc
     if predictions.size != 1 or not np.isfinite(predictions[0]):
