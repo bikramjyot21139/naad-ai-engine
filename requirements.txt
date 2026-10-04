@@ -1,4 +1,6 @@
 fastapi==0.109.2
 mangum==0.17.0
-onnxruntime==1.17.1
 numpy==1.26.4
+pandas==2.2.3
+joblib==1.4.2
+scikit-learn==1.4.2
