@@ -27,44 +27,58 @@ def read_label_splits(labels_dir: Path) -> pd.DataFrame:
         frame["PHQ_Score"] = pd.to_numeric(frame["PHQ_Score"], errors="raise")
         frame["split"] = split
         frames.append(frame)
+
     labels = pd.concat(frames, ignore_index=True)
     if labels["Participant_ID"].duplicated().any():
         raise ValueError("Participant appears more than once across official splits")
     if not labels["PHQ_Score"].between(0, 24).all():
-        raise ValueError("PHQ_Score has a value outside 0–24")
+        raise ValueError("PHQ_Score has a missing or out-of-range value; expected 0–24")
     return labels
 
 
 def _find_transcript(directory: Path, pid: int) -> Path:
-    matches = [p for p in directory.glob("*.csv") if "transcript" in p.name.lower() and participant_id(p) == pid]
+    matches = [
+        path for path in directory.glob("*.csv")
+        if "transcript" in path.name.lower() and participant_id(path) == pid
+    ]
     if len(matches) != 1:
-        raise FileNotFoundError(f"Expected exactly one participant transcript for {pid}; found {len(matches)}")
+        raise FileNotFoundError(
+            f"Expected exactly one participant transcript for {pid}; found {len(matches)}"
+        )
     return matches[0]
 
 
 def _extract_text(path: Path):
     frame = pd.read_csv(path)
-    normalized_columns = {str(c).strip().lower(): c for c in frame.columns}
-    text_column = next((normalized_columns[name] for name in TEXT_COLUMNS if name in normalized_columns), None)
+    normalized_columns = {str(column).strip().lower(): column for column in frame.columns}
+    text_column = next(
+        (normalized_columns[name] for name in TEXT_COLUMNS if name in normalized_columns),
+        None,
+    )
     if text_column is None:
-        raise ValueError(f"No known text column in {path}: {list(frame.columns)}")
+        raise ValueError(f"No known transcript text column in {path}: {list(frame.columns)}")
 
-    text = frame[text_column].fillna("").astype(str)
     speaker_column = normalized_columns.get("speaker")
-    method = "all_turns"
-    if speaker_column is not None:
-        speaker = frame[speaker_column].fillna("").astype(str).str.strip().str.lower()
-        interviewer = speaker.str.contains(r"ellie|interviewer|wizard|agent", regex=True)
-        participant = speaker.str.contains(r"participant|subject|user", regex=True)
-        if participant.any():
-            text = text.loc[participant]
-            method = "participant_turns"
-        elif interviewer.any() and (~interviewer).any():
-            text = text.loc[~interviewer]
-            method = "non_interviewer_turns"
+    if speaker_column is None:
+        raise ValueError(
+            f"No speaker column in {path}; refusing to mix interviewer and participant speech. "
+            "Confirm the transcript schema and add an explicit, tested speaker mapping."
+        )
 
+    speakers = frame[speaker_column].fillna("").astype(str).str.strip().str.lower()
+    participant = speakers.str.contains(r"participant|subject|user", regex=True)
+    if not participant.any():
+        raise ValueError(
+            f"Could not identify participant turns in {path}; observed speakers: "
+            f"{sorted(speakers.unique().tolist())}. Add an explicit, verified speaker mapping."
+        )
+
+    text = frame.loc[participant, text_column].fillna("").astype(str)
     utterances = [re.sub(r"\s+", " ", value).strip() for value in text.tolist()]
-    return " ".join(value for value in utterances if value), method
+    transcript = " ".join(value for value in utterances if value)
+    if not transcript:
+        raise ValueError(f"Participant transcript is empty after speaker filtering: {path}")
+    return transcript, "participant_turns"
 
 
 def build_dataset(data_dir: Path, labels_dir: Path) -> pd.DataFrame:
@@ -72,7 +86,7 @@ def build_dataset(data_dir: Path, labels_dir: Path) -> pd.DataFrame:
     rows = []
     for record in labels.to_dict(orient="records"):
         pid = int(record["Participant_ID"])
-        directories = [p for p in data_dir.glob("*_P") if participant_id(p) == pid]
+        directories = [path for path in data_dir.glob("*_P") if participant_id(path) == pid]
         if len(directories) != 1:
             raise FileNotFoundError(
                 f"Expected one extracted participant directory for {pid}; found {len(directories)}. "
@@ -80,8 +94,6 @@ def build_dataset(data_dir: Path, labels_dir: Path) -> pd.DataFrame:
             )
         transcript_path = _find_transcript(directories[0], pid)
         transcript, speaker_filter = _extract_text(transcript_path)
-        if not transcript:
-            raise ValueError(f"Transcript is empty for participant {pid}")
         rows.append({
             "participant_id": pid,
             "split": record["split"],
@@ -91,9 +103,12 @@ def build_dataset(data_dir: Path, labels_dir: Path) -> pd.DataFrame:
             "transcript_speaker_filter": speaker_filter,
             "transcript_file": transcript_path.name,
         })
+
     result = pd.DataFrame(rows).sort_values(["split", "participant_id"]).reset_index(drop=True)
     if result["participant_id"].duplicated().any():
         raise ValueError("Duplicate participant after transcript/label alignment")
+    if not result["transcript"].fillna("").str.strip().ne("").all():
+        raise ValueError("At least one participant transcript is empty")
     return result
 
 
@@ -107,7 +122,9 @@ def run_etl(data_dir: Path, labels_dir: Path, output_path: Path) -> pd.DataFrame
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Align local E-DAIC transcripts to official participant splits and PHQ labels.")
+    parser = argparse.ArgumentParser(
+        description="Align local E-DAIC participant-only transcripts to official labels and splits."
+    )
     parser.add_argument("--data-dir", type=Path, required=True, help="Extracted *_P participant folders")
     parser.add_argument("--labels-dir", type=Path, required=True, help="Official train/dev/test split CSVs")
     parser.add_argument("--output", type=Path, default=Path("data/processed/edaic_text.csv"))
