@@ -1,36 +1,39 @@
-# NAAD AI backend: validation branch
+# NAAD AI backend — research validation branch
 
-The repair branch replaces synthetic audio and misleading fallback scores with a **text-only research baseline interface**. It does not include trained E-DAIC weights, a tokenizer, or the E-DAIC data.
+This branch deliberately replaces synthetic audio inputs and misleading fallback scores with a fail-closed, **text-only research API**. It does not contain E-DAIC data or trained weights. Without an authorized, compatible model, `/api/health` and `/api/predict` return `503`; this is intentional, not a routing fix candidate.
 
-## Important use restriction
+## E-DAIC licence and scope
 
-E-DAIC's published end-user licence allows research use only and forbids commercial use and redistribution. Do not use E-DAIC, its transcripts, features, or models trained on it commercially unless the rights holder grants written permission. Keep participant data and derived transcripts out of Git. The service is not a diagnosis, PHQ-8 questionnaire, or crisis assessment.
+The published E-DAIC end-user licence permits research use and forbids commercial use and redistribution. Do not use its transcripts, features, labels, or trained derivatives commercially without written authorization. Keep raw data, derived transcripts, model files, and manifests out of public Git. The baseline estimates an interview-level PHQ-8 research target only; it is not a questionnaire, diagnosis, emotion classifier, or crisis assessment.
 
-## Local research workflow
+## Colab / local research workflow
 
-1. Obtain and sign the current E-DAIC EULA. Download the official labels and extract the licensed participant archives into a local, private directory. Never commit those files.
-2. Install training dependencies: `python -m pip install -r requirements-training.txt`.
-3. Align actual transcript rows to official participant split labels:
+1. Obtain and sign the current E-DAIC licence. Download and extract the authorized participant archives privately. Do not commit data.
+2. Install training packages: `python -m pip install -r requirements-training.txt`.
+3. Build aligned participant-level data from the official split labels and participant transcript directories:
 
    `python -m src.etl_pipeline --data-dir /private/edaic/extracted --labels-dir /private/edaic/labels --output data/processed/edaic_text.csv`
 
-4. Train the text-only participant-level PHQ-score baseline:
-
-   `python -m src.train_multimodal --dataset data/processed/edaic_text.csv --output-dir models`
-
-   The test split is not used for model selection. The script writes the selected model and metrics locally; both are ignored by Git. The model marks itself eligible only if it beats the training-median baseline on the supplied development split. This is an engineering gate, not clinical validation.
-5. Install test requirements and run tests:
+   ETL requires a recognized transcript text column and a speaker column with identifiable participant turns. If the actual dataset uses different encodings, delimiters, headers, or speaker tags, stop and explicitly verify/map that format first; do not silently mix interviewer turns into participant text.
+4. Install tests and run them before training:
 
    `python -m pip install -r requirements-test.txt`
 
    `python -m pytest -q`
 
-## Serving warning
+5. Train the fixed TF-IDF + Ridge baseline:
 
-The API expects a local trusted scikit-learn joblib model and checksum manifest. Keep `NAAD_RESEARCH_USE_ONLY=1` unset in production. For a local, authorized research evaluation only, after reviewing the EULA and model provenance, set `NAAD_RESEARCH_USE_ONLY=1` and configure `NAAD_MODEL_PATH`, `NAAD_MODEL_MANIFEST`, and `CORS_ALLOW_ORIGINS`.
+   `python -m src.train_multimodal --dataset data/processed/edaic_text.csv --output-dir models`
 
-Joblib deserialization can execute code. Never load a model artifact from an untrusted source. Do not commit model files or manifests to this public repository. There is currently no approved trained model on this branch; prediction should return unavailable until one is trained, reviewed, and supplied through a private research deployment.
+   The script requires non-empty, participant-unique train/dev/test sets, keeps participant splits disjoint, uses only train for fitting, and never uses test for model selection. It compares dev MAE with a train-median baseline. A dev improvement is only a small engineering screening gate.
+6. The model and manifest are local research artifacts. The manifest deliberately writes `deployable: false`, even if the screening gate passes, so training cannot accidentally enable a hosted API. Do not edit this flag to `true` yourself or upload artifacts to public GitHub.
 
-## Scope
+## Serving / deployment warning
 
-The first model estimates participant-level PHQ-8 score from interview text. It does not provide five-way emotion classification, diagnose depression, assess immediate self-harm risk, or support longitudinal personalization. Add real voice features only after specifying and testing identical training/serving preprocessing.
+The API needs a compatible trusted scikit-learn joblib artifact and manifest. Keep `NAAD_RESEARCH_USE_ONLY=1` unset on public or commercial services. This repository has no approved trained model; predictions remain unavailable until rights, validation, artifact provenance, privacy, and the serving environment have been separately reviewed. Vercel is not automatically configured by running the training notebook.
+
+Joblib uses pickle internally and can execute code during loading. Never load model artifacts from untrusted sources. Store research artifacts privately and only use them in a properly restricted research deployment.
+
+## Future work
+
+The text baseline does not support short chat messages, longitudinal baselines, voice emotion, or acute-risk detection. Any real audio model requires verified E-DAIC audio labels, documented preprocessing shared by training and inference, participant-disjoint evaluation, independent safety validation, and an authorized deployment pathway.
