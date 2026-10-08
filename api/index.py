@@ -41,9 +41,14 @@ def _load_artifacts():
     if _cached_model is not None and _cached_manifest is not None:
         return _cached_model, _cached_manifest
     if os.getenv("NAAD_RESEARCH_USE_ONLY") != "1":
-        raise RuntimeError("Research-only model serving has not been explicitly enabled.")
-    if not MODEL_PATH.is_file() or not MANIFEST_PATH.is_file():
-        raise RuntimeError("Trained research model or its manifest is missing.")
+        raise RuntimeError(
+            "Research-only model serving is disabled. Enable it only for an authorized research deployment; "
+            "this setting does not provide trained model files."
+        )
+    if not MODEL_PATH.is_file():
+        raise RuntimeError(f"Research model artifact is missing: {MODEL_PATH.name}")
+    if not MANIFEST_PATH.is_file():
+        raise RuntimeError(f"Research model manifest is missing: {MANIFEST_PATH.name}")
 
     with MANIFEST_PATH.open(encoding="utf-8") as stream:
         manifest = json.load(stream)
