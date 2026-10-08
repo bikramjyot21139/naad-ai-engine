@@ -14,6 +14,16 @@ def test_health_is_unavailable_without_research_model(monkeypatch):
     assert response.json()["detail"]["status"] == "unavailable"
 
 
+def test_research_gate_is_checked_even_if_model_is_cached(monkeypatch):
+    monkeypatch.setattr(index, "_cached_model", object())
+    monkeypatch.setattr(index, "_cached_manifest", {"model_version": "cached"})
+    monkeypatch.delenv("NAAD_RESEARCH_USE_ONLY", raising=False)
+    with TestClient(index.app) as client:
+        response = client.get("/api/health")
+    assert response.status_code == 503
+    assert "disabled" in response.json()["detail"]["reason"]
+
+
 def test_predict_does_not_return_fabricated_score_when_unavailable(monkeypatch):
     monkeypatch.setattr(index, "_cached_model", None)
     monkeypatch.setattr(index, "_cached_manifest", None)

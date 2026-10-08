@@ -38,12 +38,18 @@ class PredictRequest(BaseModel):
 
 def _load_artifacts():
     global _cached_model, _cached_manifest
+    # Check the research-use gate on every call, even when a model is cached.
+    if os.getenv("NAAD_RESEARCH_USE_ONLY") != "1":
+        raise RuntimeError(
+            "Research-only model serving is disabled. Enable it only for an authorized research deployment; "
+            "this setting does not provide trained model files."
+        )
     if _cached_model is not None and _cached_manifest is not None:
         return _cached_model, _cached_manifest
-    if os.getenv("NAAD_RESEARCH_USE_ONLY") != "1":
-        raise RuntimeError("Research-only model serving has not been explicitly enabled.")
-    if not MODEL_PATH.is_file() or not MANIFEST_PATH.is_file():
-        raise RuntimeError("Trained research model or its manifest is missing.")
+    if not MODEL_PATH.is_file():
+        raise RuntimeError(f"Research model artifact is missing: {MODEL_PATH.name}")
+    if not MANIFEST_PATH.is_file():
+        raise RuntimeError(f"Research model manifest is missing: {MANIFEST_PATH.name}")
 
     with MANIFEST_PATH.open(encoding="utf-8") as stream:
         manifest = json.load(stream)
@@ -53,6 +59,8 @@ def _load_artifacts():
         raise RuntimeError("Model did not pass the documented development baseline gate.")
     if manifest.get("feature_schema") != "tfidf_word_char_ridge_v1":
         raise RuntimeError("Unsupported model feature schema.")
+    if not isinstance(manifest.get("model_version"), str) or not manifest["model_version"].strip():
+        raise RuntimeError("Model manifest is missing a valid model_version.")
     model_hash = hashlib.sha256(MODEL_PATH.read_bytes()).hexdigest()
     if model_hash != manifest.get("model_sha256"):
         raise RuntimeError("Model checksum does not match its manifest.")
